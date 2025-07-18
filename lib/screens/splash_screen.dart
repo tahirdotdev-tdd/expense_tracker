@@ -1,9 +1,10 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
+// screens/splash_screen.dart
 
-// Import your new multi-step onboarding screen
+import 'dart:async';
+import 'package:expense_tracker/services/auth_gate.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'onboarding_screen.dart';
-// Make sure you have your color styles available
 import '../styles/colors/colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -23,7 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _controller = AnimationController(
-      duration: const Duration(seconds: 2), // Animation duration
+      duration: const Duration(seconds: 2),
       vsync: this,
     );
 
@@ -34,19 +35,37 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // After a delay, navigate to the OnboardingScreen
+    // We now call a dedicated function to handle the complex navigation logic.
+    _determineNextScreen();
+  }
+
+  // --- NEW, UPDATED LOGIC IS HERE ---
+  Future<void> _determineNextScreen() async {
+    // 1. Check SharedPreferences to see if the user has completed onboarding before.
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasSeenOnboarding = prefs.getBool('onboarding_complete') ?? false;
+
+    // 2. Define the destination widget based on the check.
+    final Widget destination = hasSeenOnboarding
+        ? const AuthGate() // If yes, go to the AuthGate.
+        : const MultiStepOnboardingScreen(); // If no, go to Onboarding.
+
+    // 3. Use your original timer to ensure the splash screen is visible.
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
+        // 4. Navigate using your beautiful PageRouteBuilder, but with the correct destination.
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (context, animation, secondaryAnimation) =>
-            const MultiStepOnboardingScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0); // Slide from right
+            // THE KEY CHANGE: We use the 'destination' variable here.
+            pageBuilder: (context, animation, secondaryAnimation) => destination,
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
-              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.easeInOut));
+              final tween = Tween(begin: begin, end: end)
+                  .chain(CurveTween(curve: Curves.easeInOut));
               final offsetAnimation = animation.drive(tween);
 
               return SlideTransition(
@@ -56,10 +75,8 @@ class _SplashScreenState extends State<SplashScreen>
             },
           ),
         );
-
       }
     });
-
   }
 
   @override
@@ -68,6 +85,8 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  // --- YOUR UI CODE IS UNCHANGED ---
+  // No changes were needed here, all your beautiful UI is preserved.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
